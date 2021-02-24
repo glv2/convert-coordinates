@@ -20,8 +20,8 @@
   (:menu-bar nil)
   (:panes
    (map :application-pane
-        :min-width 1024 :max-width 1024
-        :min-height 794 :max-height 794
+        :min-width 1200 :max-width 1200
+        :min-height 930 :max-height 930
         :display-time nil
         :display-function #'display-map)
    (lat/lon-1 :text-field
@@ -54,44 +54,45 @@
              :editable-p nil))
   (:layouts
    (default (clim:horizontally ()
-              (clim:labelling (:label "Point 1 (red)" :label-alignment :top)
-                (clim:vertically ()
-                  (clim:labelling (:label "Latitude Longitude"
-                                   :label-alignment :top)
-                    (clim:vertically ()
-                      lat/lon-1
-                      lat/lon-deg-1))
-                  (clim:labelling (:label "UTM/UPS" :label-alignment :top)
-                    utm-1)
-                  (clim:labelling (:label "MGRS" :label-alignment :top)
-                    mgrs-1)
-                  (clim:labelling (:label "Maidenhead" :label-alignment :top)
-                    maidenhead-1)
-                  (clim:labelling (:label "Open Location Code"
-                                   :label-alignment :top)
-                    olc-1)))
+              (clim:vertically ()
+                (clim:labelling (:label "Point 1 (red)" :label-alignment :top)
+                  (clim:vertically ()
+                    (clim:labelling (:label "Latitude Longitude"
+                                     :label-alignment :top)
+                      (clim:vertically ()
+                        lat/lon-1
+                        lat/lon-deg-1))
+                    (clim:labelling (:label "UTM/UPS" :label-alignment :top)
+                      utm-1)
+                    (clim:labelling (:label "MGRS" :label-alignment :top)
+                      mgrs-1)
+                    (clim:labelling (:label "Maidenhead" :label-alignment :top)
+                      maidenhead-1)
+                    (clim:labelling (:label "Open Location Code"
+                                     :label-alignment :top)
+                      olc-1)))
+                (clim:labelling (:label "Point 2 (yellow)"
+                                 :label-alignment :top)
+                  (clim:vertically ()
+                    (clim:labelling (:label "Latitude Longitude"
+                                     :label-alignment :top)
+                      (clim:vertically ()
+                        lat/lon-2
+                        lat/lon-deg-2))
+                    (clim:labelling (:label "UTM/UPS" :label-alignment :top)
+                      utm-2)
+                    (clim:labelling (:label "MGRS" :label-alignment :top)
+                      mgrs-2)
+                    (clim:labelling (:label "Maidenhead" :label-alignment :top)
+                      maidenhead-2)
+                    (clim:labelling (:label "Open Location Code"
+                                     :label-alignment :top)
+                      olc-2)))
+                (clim:labelling (:label "Distance" :label-alignment :top)
+                  distance))
               (clim:labelling (:label "World map (Mercator projection)"
                                :label-alignment :top)
-                map)
-              (clim:labelling (:label "Point 2 (yellow)" :label-alignment :top)
-                (clim:vertically ()
-                  (clim:labelling (:label "Latitude Longitude"
-                                   :label-alignment :top)
-                    (clim:vertically ()
-                      lat/lon-2
-                      lat/lon-deg-2))
-                  (clim:labelling (:label "UTM/UPS" :label-alignment :top)
-                    utm-2)
-                  (clim:labelling (:label "MGRS" :label-alignment :top)
-                    mgrs-2)
-                  (clim:labelling (:label "Maidenhead" :label-alignment :top)
-                    maidenhead-2)
-                  (clim:labelling (:label "Open Location Code"
-                                   :label-alignment :top)
-                    olc-2)
-                  (clim:labelling (:label "Distance from point 1"
-                                   :label-alignment :top)
-                    distance)))))))
+                map)))))
 
 (defmethod initialize-instance :after ((instance convert-coordinates) &key)
   (setf (world-map instance) (clim:make-pattern-from-bitmap-file *map*)))
