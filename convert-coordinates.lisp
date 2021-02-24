@@ -80,7 +80,7 @@
                     (clim:vertically ()
                       lat/lon-2
                       lat/lon-deg-2))
-                  (clim:labelling (:label "UTM" :label-alignment :top)
+                  (clim:labelling (:label "UTM/UPS" :label-alignment :top)
                     utm-2)
                   (clim:labelling (:label "MGRS" :label-alignment :top)
                     mgrs-2)
