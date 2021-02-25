@@ -38,7 +38,7 @@
    (olc-1 :text-field
           :activate-callback (lambda (pane) (update :olc pane)))
    (lat/lon-2 :text-field
-              :value "40°40'12\"N 73°56'24\"W"
+              :value "45°31'12.3\"N 122°40'45.6\"W"
               :activate-callback (lambda (pane) (update :lat/lon pane)))
    (lat/lon-deg-2 :text-field
                   :editable-p nil)
