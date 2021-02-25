@@ -50,49 +50,67 @@
                  :activate-callback (lambda (pane) (update :maidenhead pane)))
    (olc-2 :text-field
           :activate-callback (lambda (pane) (update :olc pane)))
-   (distance :text-field
-             :editable-p nil))
+   (distance-ortho :text-field
+                   :editable-p nil)
+   (azimuth-ortho :text-field
+                  :editable-p nil)
+   (distance-loxo :text-field
+                  :editable-p nil)
+   (azimuth-loxo :text-field
+                 :editable-p nil))
   (:layouts
-   (default (clim:horizontally ()
-              (clim:vertically ()
-                (clim:labelling (:label "Point 1 (red)" :label-alignment :top)
-                  (clim:vertically ()
-                    (clim:labelling (:label "Latitude Longitude"
-                                     :label-alignment :top)
-                      (clim:vertically ()
-                        lat/lon-1
-                        lat/lon-deg-1))
-                    (clim:labelling (:label "UTM/UPS" :label-alignment :top)
-                      utm-1)
-                    (clim:labelling (:label "MGRS" :label-alignment :top)
-                      mgrs-1)
-                    (clim:labelling (:label "Maidenhead" :label-alignment :top)
-                      maidenhead-1)
-                    (clim:labelling (:label "Open Location Code"
-                                     :label-alignment :top)
-                      olc-1)))
-                (clim:labelling (:label "Point 2 (yellow)"
-                                 :label-alignment :top)
-                  (clim:vertically ()
-                    (clim:labelling (:label "Latitude Longitude"
-                                     :label-alignment :top)
-                      (clim:vertically ()
-                        lat/lon-2
-                        lat/lon-deg-2))
-                    (clim:labelling (:label "UTM/UPS" :label-alignment :top)
-                      utm-2)
-                    (clim:labelling (:label "MGRS" :label-alignment :top)
-                      mgrs-2)
-                    (clim:labelling (:label "Maidenhead" :label-alignment :top)
-                      maidenhead-2)
-                    (clim:labelling (:label "Open Location Code"
-                                     :label-alignment :top)
-                      olc-2)))
-                (clim:labelling (:label "Distance" :label-alignment :top)
-                  distance))
-              (clim:labelling (:label "World map (Mercator projection)"
-                               :label-alignment :top)
-                map)))))
+   (default
+    (clim:horizontally ()
+      (1/4 (clim:vertically ()
+             (clim:labelling (:label "Point 1 (red)" :label-alignment :top)
+               (clim:vertically ()
+                 (clim:labelling (:label "Latitude Longitude"
+                                  :label-alignment :top)
+                   (clim:vertically ()
+                     lat/lon-1
+                     lat/lon-deg-1))
+                 (clim:labelling (:label "UTM/UPS" :label-alignment :top)
+                   utm-1)
+                 (clim:labelling (:label "MGRS" :label-alignment :top)
+                   mgrs-1)
+                 (clim:labelling (:label "Maidenhead" :label-alignment :top)
+                   maidenhead-1)
+                 (clim:labelling (:label "Open Location Code"
+                                  :label-alignment :top)
+                   olc-1)))
+             (clim:labelling (:label "Point 2 (yellow)"
+                              :label-alignment :top)
+               (clim:vertically ()
+                 (clim:labelling (:label "Latitude Longitude"
+                                  :label-alignment :top)
+                   (clim:vertically ()
+                     lat/lon-2
+                     lat/lon-deg-2))
+                 (clim:labelling (:label "UTM/UPS" :label-alignment :top)
+                   utm-2)
+                 (clim:labelling (:label "MGRS" :label-alignment :top)
+                   mgrs-2)
+                 (clim:labelling (:label "Maidenhead" :label-alignment :top)
+                   maidenhead-2)
+                 (clim:labelling (:label "Open Location Code"
+                                  :label-alignment :top)
+                   olc-2)))
+             (clim:labelling (:label "Orthodrome (green)" :label-alignment :top)
+               (clim:vertically ()
+                 (clim:labelling (:label "Distance" :label-alignment :top)
+                   distance-ortho)
+                 (clim:labelling (:label "Initial azimuth"
+                                  :label-alignment :top)
+                   azimuth-ortho)))
+             (clim:labelling (:label "Loxodrome (blue)" :label-alignment :top)
+               (clim:vertically ()
+                 (clim:labelling (:label "Distance" :label-alignment :top)
+                   distance-loxo)
+                 (clim:labelling (:label "Azimuth" :label-alignment :top)
+                   azimuth-loxo)))))
+      (3/4 (clim:labelling (:label "World map (Mercator projection)"
+                            :label-alignment :top)
+             map))))))
 
 (defmethod initialize-instance :after ((instance convert-coordinates) &key)
   (setf (world-map instance) (clim:make-pattern-from-bitmap-file *map*)))
@@ -158,7 +176,7 @@
                                 height))))
         (clim:draw-point* map x y :ink color :line-thickness thickness)))))
 
-(defun distance (coordinates-1 coordinates-2)
+(defun distance-orthodrome (coordinates-1 coordinates-2)
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
       (let* ((lat-1 (* latitude-1 pi 1/180))
@@ -169,14 +187,15 @@
                    (* (sin lat-1) (sin lat-2)))))
         (acos c)))))
 
-(defun azimuth (coordinates-1 coordinates-2 &optional distance)
+(defun azimuth-orthodrome (coordinates-1 coordinates-2 &optional distance)
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
-      (let* ((lat-1 (* latitude-1 pi 1/180))
-             (lon-1 (* longitude-1 pi 1/180))
-             (lat-2 (* latitude-2 pi 1/180))
-             (lon-2 (* longitude-2 pi 1/180))
-             (d (or distance (distance coordinates-1 coordinates-2))))
+      (let ((lat-1 (* latitude-1 pi 1/180))
+            (lon-1 (* longitude-1 pi 1/180))
+            (lat-2 (* latitude-2 pi 1/180))
+            (lon-2 (* longitude-2 pi 1/180))
+            (d (or distance
+                   (distance-orthodrome coordinates-1 coordinates-2))))
         (cond
           ((zerop d)
            0)
@@ -189,22 +208,75 @@
                   (R0 (phase (complex cosR0 sinR0))))
              (mod (* R0 (/ 180 pi)) 360))))))))
 
-(defun draw-path (coordinates-1 coordinates-2 map color &optional (steps 1000))
-  (flet ((rad (x)
-           (* x pi 1/180))
-         (deg (x)
-           (* x (/ 180 pi))))
-    (destructuring-bind (latitude-1 longitude-1) coordinates-1
-      (do ((step (/ (distance coordinates-1 coordinates-2) steps))
-           (dlat 0 (* step (cos a)))
-           (lat (rad latitude-1) (+ lat dlat))
-           (dlon 0 (* step (/ (sin a) (cos lat))))
-           (lon (rad longitude-1) (+ lon dlon))
-           (a (rad (azimuth coordinates-1 coordinates-2))
-              (rad (azimuth (list (deg lat) (deg lon)) coordinates-2)))
-           (i 0 (1+ i)))
-          ((> i steps))
-        (draw-point (list (deg lat) (deg lon)) map color 2)))))
+(defun azimuth-loxodrome (coordinates-1 coordinates-2)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let ((lat-1 (* latitude-1 pi 1/180))
+            (lon-1 (* longitude-1 pi 1/180))
+            (lat-2 (* latitude-2 pi 1/180))
+            (lon-2 (* longitude-2 pi 1/180)))
+        (if (= lat-1 lat-2)
+            (if (> lon-2 lon-1) 90 270)
+            (mod (* (/ 180 pi)
+                    (+ (atan (/ (wrap-longitude (- lon-2 lon-1))
+                                (- (log (tan (+ (/ lat-2 2) (/ pi 4))))
+                                   (log (tan (+ (/ lat-1 2) (/ pi 4)))))))
+                       (if (< lat-2 lat-1) pi 0)))
+                 360))))))
+
+(defun distance-loxodrome (coordinates-1 coordinates-2 &optional azimuth)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let ((lat-1 (* latitude-1 pi 1/180))
+            (lon-1 (* longitude-1 pi 1/180))
+            (lat-2 (* latitude-2 pi 1/180))
+            (lon-2 (* longitude-2 pi 1/180))
+            (azimuth (or azimuth
+                         (azimuth-loxodrome coordinates-1 coordinates-2))))
+        (if (= lat-1 lat-2)
+            (* (abs (- lon-2 lon-1)) (cos lat-1))
+            (/ (- lat-2 lat-1) (cos (* (/ pi 180) azimuth))))))))
+
+(defun rad (x)
+  (* x pi 1/180))
+
+(defun deg (x)
+  (* x (/ 180 pi)))
+
+(defun wrap-longitude (lon)
+  (cond
+    ((< lon (- pi))
+     (+ lon (* 2 pi)))
+    ((> lon pi)
+     (- lon (* 2 pi)))
+    (t
+     lon)))
+
+(defun draw-orthodrome (coordinates-1 coordinates-2 map color &optional (steps 1000))
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (do ((step (/ (distance-orthodrome coordinates-1 coordinates-2) steps))
+         (dlat 0 (* step (cos a)))
+         (lat (rad latitude-1) (+ lat dlat))
+         (dlon 0 (* step (/ (sin a) (cos lat))))
+         (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
+         (a (rad (azimuth-orthodrome coordinates-1 coordinates-2))
+            (rad (azimuth-orthodrome (list (deg lat) (deg lon))
+                                     coordinates-2)))
+         (i 0 (1+ i)))
+        ((> i steps))
+      (draw-point (list (deg lat) (deg lon)) map color 2))))
+
+(defun draw-loxodrome (coordinates-1 coordinates-2 map color &optional (steps 1000))
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (do ((step (/ (distance-loxodrome coordinates-1 coordinates-2) steps))
+         (a (rad (azimuth-loxodrome coordinates-1 coordinates-2)))
+         (dlat 0 (* step (cos a)))
+         (lat (rad latitude-1) (+ lat dlat))
+         (dlon 0 (* step (/ (sin a) (cos lat))))
+         (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
+         (i 0 (1+ i)))
+        ((> i steps))
+      (draw-point (list (deg lat) (deg lon)) map color 2))))
 
 (defun update (source pane)
   (let* ((frame (clim:pane-frame pane))
@@ -225,19 +297,31 @@
          (olc-2 (clim:find-pane-named frame 'olc-2))
          (coordinates-2 (get-lat/lon source lat/lon-2 utm-2 mgrs-2
                                      maidenhead-2 olc-2))
-         (distance (clim:find-pane-named frame 'distance)))
+         (distance-ortho (clim:find-pane-named frame 'distance-ortho))
+         (azimuth-ortho (clim:find-pane-named frame 'azimuth-ortho))
+         (distance-loxo (clim:find-pane-named frame 'distance-loxo))
+         (azimuth-loxo (clim:find-pane-named frame 'azimuth-loxo))
+         (dist-ortho (distance-orthodrome coordinates-1 coordinates-2))
+         (az-ortho (azimuth-orthodrome coordinates-1 coordinates-2 dist-ortho))
+         (az-loxo (azimuth-loxodrome coordinates-1 coordinates-2))
+         (dist-loxo (distance-loxodrome coordinates-1 coordinates-2)))
     (display-map frame map)
-    (draw-path coordinates-1 coordinates-2 map clim:+green+)
+    (draw-loxodrome coordinates-1 coordinates-2 map clim:+blue+)
+    (draw-orthodrome coordinates-1 coordinates-2 map clim:+green+)
     (update-coordinates coordinates-1 lat/lon-1 lat/lon-deg-1 utm-1 mgrs-1
                         maidenhead-1 olc-1)
     (draw-point coordinates-1 map clim:+red+ 6)
     (update-coordinates coordinates-2 lat/lon-2 lat/lon-deg-2 utm-2 mgrs-2
                         maidenhead-2 olc-2)
     (draw-point coordinates-2 map clim:+yellow+ 6)
-    (setf (clim:gadget-value distance)
-          (format nil "~d km"
-                  (round (* 6378137d0 (distance coordinates-1 coordinates-2))
-                         1000)))
+    (setf (clim:gadget-value distance-ortho)
+          (format nil "~d km" (round (* 6378137d0 dist-ortho) 1000)))
+    (setf (clim:gadget-value azimuth-ortho)
+          (format nil "~d°" (round az-ortho)))
+    (setf (clim:gadget-value distance-loxo)
+          (format nil "~d km" (round (* 6378137d0 dist-loxo) 1000)))
+    (setf (clim:gadget-value azimuth-loxo)
+          (format nil "~d°" (round az-loxo)))
     (clim:redisplay-frame-panes frame)))
 
 (defun gui ()
