@@ -1,0 +1,44 @@
+#+TITLE: convert-coordinates
+
+This is a Common Lisp program that can convert the coordinates of two locations
+between the following systems:
+ - Latitude/Longitude
+ - Universal Transverse Mercator / Universal Polar Stereographic
+ - Military Grid Reference System
+ - Maidenhead
+ - Open Location Code
+
+It also shows the locations as well as the orthodrome and loxodrome between
+these locations on a world map.
+
+* License
+This program is released under the GPL-3 license. See the [[file:LICENSE][LICENSE]] file for
+details.
+
+The world map is in the public domain. It comes from NASA's Earth Observatory
+"Blue Marble" series. See [[https://commons.wikimedia.org/wiki/File:Mercator-projection.jpg][Wikimedia Commons]].
+
+* Running the program
+The program requires the following dependencies:
+ - [[https://github.com/glv2/maidenhead][maidenhead]]
+ - [[https://github.com/McCLIM/McCLIM][mcclim]]
+ - [[https://github.com/glv2/mgrs][mgrs]]
+ - [[https://github.com/glv2/olc][olc]]
+ - [[https://github.com/glv2/utm-ups][utm-ups]]
+
+Once the program and its dependencies are in paths where ASDF can see them,
+you can run it with:
+
+#+BEGIN_SRC lisp
+(asdf:load-system "convert-coordinates")
+(convert-coordinates:gui)
+#+END_SRC
+
+* Building a standalone executable
+A Makefile is available to build a standalone executable for the program using
+[[http://www.sbcl.org/][SBCL]].
+
+#+BEGIN_SRC shell
+make
+./convert-coordinates
+#+END_SRC
