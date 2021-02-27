@@ -24,7 +24,7 @@
         :min-width 1200 :max-width 1200
         :min-height 930 :max-height 930
         :display-time nil
-        :display-function #'display-map)
+        :display-function #'clear-map)
    (lat/lon-1 :text-field
               :value "48.86 2.34"
               :activate-callback (lambda (pane) (update :lat/lon pane)))
@@ -113,17 +113,9 @@
                             :label-alignment :top)
              map))))))
 
-(defun display-map (frame pane)
-  (clim:updating-output (pane)
-    (let* ((image (world-map frame)))
-           ;; (width (clim:pattern-width image))
-           ;; (height (clim:pattern-height image))
-           ;; (pane-width (clim:bounding-rectangle-width pane))
-           ;; (pane-height (clim:bounding-rectangle-width pane))
-      ;;      (scale (min (/ pane-width width) (/ pane-height height)))
-      ;;      (scaling (clim:make-scaling-transformation scale scale)))
-      ;; (clim:with-drawing-options (pane :transformation scaling)
-        (clim:draw-design pane image))))
+(defun clear-map (frame pane)
+  (clim:window-clear pane)
+  (clim:draw-design pane (world-map frame)))
 
 (defun get-lat/lon (source lat/lon utm mgrs maidenhead olc)
   (handler-case
@@ -311,7 +303,7 @@
          (az-ortho (azimuth-orthodrome coordinates-1 coordinates-2 dist-ortho))
          (az-loxo (azimuth-loxodrome coordinates-1 coordinates-2))
          (dist-loxo (distance-loxodrome coordinates-1 coordinates-2)))
-    (display-map frame map)
+    (clear-map frame map)
     (draw-loxodrome coordinates-1 coordinates-2 map clim:+purple+)
     (draw-orthodrome coordinates-1 coordinates-2 map clim:+orange+)
     (update-coordinates coordinates-1 lat/lon-1 lat/lon-deg-1 utm-1 mgrs-1
