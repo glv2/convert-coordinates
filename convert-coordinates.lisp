@@ -11,9 +11,11 @@
 (in-package :convert-coordinates)
 
 
-(defconstant +earth-radius+ 6378137d0)
-(defparameter *map* (asdf:system-relative-pathname "convert-coordinates"
-                                                   "map.png"))
+(defconstant +earth-radius+ 6378137d0
+  "Radius of the planet")
+(defparameter *map*
+  (asdf:system-relative-pathname "convert-coordinates" "map.png")
+  "Mercator projection of the planet for latitudes between -80° and 80°.")
 
 (clim:define-application-frame convert-coordinates ()
   ((world-map :accessor world-map
@@ -96,14 +98,16 @@
                  (clim:labelling (:label "Open Location Code"
                                   :label-alignment :top)
                    olc-2)))
-             (clim:labelling (:label "Orthodrome (orange)" :label-alignment :top)
+             (clim:labelling (:label "Orthodrome (orange)"
+                              :label-alignment :top)
                (clim:vertically ()
                  (clim:labelling (:label "Distance" :label-alignment :top)
                    distance-ortho)
                  (clim:labelling (:label "Initial azimuth"
                                   :label-alignment :top)
                    azimuth-ortho)))
-             (clim:labelling (:label "Loxodrome (purple)" :label-alignment :top)
+             (clim:labelling (:label "Loxodrome (purple)"
+                              :label-alignment :top)
                (clim:vertically ()
                  (clim:labelling (:label "Distance" :label-alignment :top)
                    distance-loxo)
@@ -114,10 +118,12 @@
              map))))))
 
 (defun clear-map (frame pane)
+  "Reset the map pane to its default state."
   (clim:window-clear pane)
   (clim:draw-design pane (world-map frame)))
 
 (defun get-lat/lon (source lat/lon utm mgrs maidenhead olc)
+  "Get the coordinates in the activated field."
   (handler-case
       (ecase source
         ((:lat/lon)
@@ -135,6 +141,7 @@
     (error () '(0 0))))
 
 (defun update-coordinates (coordinates lat/lon lat/lon-deg utm mgrs maidenhead olc)
+  "Compute the new coordinates and update the fields."
   (destructuring-bind (latitude longitude) coordinates
     (setf (clim:gadget-value lat/lon)
           (utm-ups:format-lat/lon latitude longitude t))
@@ -151,12 +158,15 @@
     (setf (clim:gadget-value olc) (olc:lat/lon->olc latitude longitude))))
 
 (defun rad (x)
+  "Convert the X angle from degrees to radians."
   (* x pi 1/180))
 
 (defun deg (x)
+  "Convert the X angle from radians to degrees."
   (* x (/ 180 pi)))
 
 (defun wrap-longitude (lon)
+  "Wrap the longitude angle so that it stays between -π and π."
   (cond
     ((< lon (- pi))
      (+ lon (* 2 pi)))
@@ -166,9 +176,12 @@
      lon)))
 
 (defun mercator (lat)
+  "Compute the Mercator projection for a latitude."
   (log (tan (+ (/ lat 2) (/ pi 4)))))
 
 (defun draw-point (coordinates map color thickness)
+  "Draw a point at some COORDINATES on the MAP, using the given COLOR and
+THICKNESS."
   (destructuring-bind (latitude longitude) coordinates
     (when (< -80 latitude 80)
       (let* ((lat (rad latitude))
@@ -185,6 +198,8 @@
         (clim:draw-point* map x y :ink color :line-thickness thickness)))))
 
 (defun distance-orthodrome (coordinates-1 coordinates-2)
+  "Compute the distance between COORDINATES-1 and COORDINATES-2 on a great
+circle."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
       (let* ((lat-1 (rad latitude-1))
@@ -196,6 +211,8 @@
         (acos c)))))
 
 (defun azimuth-orthodrome (coordinates-1 coordinates-2 &optional distance)
+  "Compute the initial azimuth to follow to go from COORDINATES-1 to
+COORDINATES-2 on a great circle. If DISTANCE is not given, it is computed."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
       (let ((lat-1 (rad latitude-1))
@@ -217,6 +234,8 @@
              (mod (deg R0) 360))))))))
 
 (defun azimuth-loxodrome (coordinates-1 coordinates-2)
+  "Compute the azimuth to follow to go from COORDINATES-1 to COORDINATES-2 on
+a rhumb line."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
       (let ((lat-1 (rad latitude-1))
@@ -231,6 +250,8 @@
               (mod (deg R0) 360)))))))
 
 (defun distance-loxodrome (coordinates-1 coordinates-2 &optional azimuth)
+  "Compute the distance between COORDINATES-1 and COORDINATES-2 on a rhumb
+line. If AZIMUTH is not given, it is computed."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (destructuring-bind (latitude-2 longitude-2) coordinates-2
       (let ((lat-1 (rad latitude-1))
@@ -244,6 +265,8 @@
             (/ (- lat-2 lat-1) (cos az)))))))
 
 (defun draw-orthodrome (coordinates-1 coordinates-2 map color)
+  "Draw the part of the great circle between COORDINATES-1 and COORDINATES-2 on
+the MAP, using some COLOR."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (let* ((distance (distance-orthodrome coordinates-1 coordinates-2))
            (step (/ 1000 +earth-radius+))
@@ -261,6 +284,8 @@
           (draw-point (list (deg lat) (deg lon)) map color 3))))))
 
 (defun draw-loxodrome (coordinates-1 coordinates-2 map color)
+  "Draw the part of the rhumb line between COORDINATES-1 and COORDINATES-2 on
+the MAP, using some COLOR."
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
     (let* ((azimuth (azimuth-loxodrome coordinates-1 coordinates-2))
            (distance (distance-loxodrome coordinates-1 coordinates-2 azimuth))
@@ -277,6 +302,7 @@
           (draw-point (list (deg lat) (deg lon)) map color 3))))))
 
 (defun update (source pane)
+  "Update all the fields and the map based on the new coordinates."
   (let* ((frame (clim:pane-frame pane))
          (map (clim:find-pane-named frame 'map))
          (lat/lon-1 (clim:find-pane-named frame 'lat/lon-1))
@@ -323,5 +349,6 @@
     (clim:redisplay-frame-panes frame)))
 
 (defun gui ()
+  "Show the graphical interface."
   (let ((frame (clim:make-application-frame 'convert-coordinates)))
     (clim:run-frame-top-level frame)))
