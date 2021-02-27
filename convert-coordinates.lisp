@@ -11,12 +11,13 @@
 (in-package :convert-coordinates)
 
 
+(defconstant +earth-radius+ 6378137d0)
 (defparameter *map* (asdf:system-relative-pathname "convert-coordinates"
                                                    "map.png"))
 
 (clim:define-application-frame convert-coordinates ()
-  ((world-map :initarg world-map
-              :accessor world-map))
+  ((world-map :accessor world-map
+              :initform (clim:make-pattern-from-bitmap-file *map*)))
   (:menu-bar nil)
   (:panes
    (map :application-pane
@@ -95,14 +96,14 @@
                  (clim:labelling (:label "Open Location Code"
                                   :label-alignment :top)
                    olc-2)))
-             (clim:labelling (:label "Orthodrome (green)" :label-alignment :top)
+             (clim:labelling (:label "Orthodrome (orange)" :label-alignment :top)
                (clim:vertically ()
                  (clim:labelling (:label "Distance" :label-alignment :top)
                    distance-ortho)
                  (clim:labelling (:label "Initial azimuth"
                                   :label-alignment :top)
                    azimuth-ortho)))
-             (clim:labelling (:label "Loxodrome (blue)" :label-alignment :top)
+             (clim:labelling (:label "Loxodrome (purple)" :label-alignment :top)
                (clim:vertically ()
                  (clim:labelling (:label "Distance" :label-alignment :top)
                    distance-loxo)
@@ -111,9 +112,6 @@
       (3/4 (clim:labelling (:label "World map (Mercator projection)"
                             :label-alignment :top)
              map))))))
-
-(defmethod initialize-instance :after ((instance convert-coordinates) &key)
-  (setf (world-map instance) (clim:make-pattern-from-bitmap-file *map*)))
 
 (defun display-map (frame pane)
   (clim:updating-output (pane)
@@ -160,83 +158,6 @@
           (maidenhead:lat/lon->maidenhead latitude longitude))
     (setf (clim:gadget-value olc) (olc:lat/lon->olc latitude longitude))))
 
-(defun mercator (latitude)
-  (log (tan (+ (/ (* pi (/ latitude 180)) 2) (/ pi 4)))))
-
-(defun draw-point (coordinates map color thickness)
-  (destructuring-bind (latitude longitude) coordinates
-    (when (< -80 latitude 80)
-      (let* ((image (world-map (clim:pane-frame map)))
-             (width (clim:pattern-width image))
-             (height (clim:pattern-height image))
-             (center-x (/ width 2))
-             (center-y (/ height 2))
-             (x (+ center-x (* (/ longitude 360) width)))
-             (y (- center-y  (* (/ (mercator latitude) (mercator 80) 2)
-                                height))))
-        (clim:draw-point* map x y :ink color :line-thickness thickness)))))
-
-(defun distance-orthodrome (coordinates-1 coordinates-2)
-  (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (destructuring-bind (latitude-2 longitude-2) coordinates-2
-      (let* ((lat-1 (* latitude-1 pi 1/180))
-             (lon-1 (* longitude-1 pi 1/180))
-             (lat-2 (* latitude-2 pi 1/180))
-             (lon-2 (* longitude-2 pi 1/180))
-             (c (+ (* (cos lat-1) (cos lat-2) (cos (- lon-2 lon-1)))
-                   (* (sin lat-1) (sin lat-2)))))
-        (acos c)))))
-
-(defun azimuth-orthodrome (coordinates-1 coordinates-2 &optional distance)
-  (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (destructuring-bind (latitude-2 longitude-2) coordinates-2
-      (let ((lat-1 (* latitude-1 pi 1/180))
-            (lon-1 (* longitude-1 pi 1/180))
-            (lat-2 (* latitude-2 pi 1/180))
-            (lon-2 (* longitude-2 pi 1/180))
-            (d (or distance
-                   (distance-orthodrome coordinates-1 coordinates-2))))
-        (cond
-          ((zerop d)
-           0)
-          ((= lon-1 lon-2)
-           (if (> lat-1 lat-2) 180 0))
-          (t
-           (let* ((sinR0 (/ (* (cos lat-2) (sin (- lon-2 lon-1))) (sin d)))
-                  (cosR0 (/ (- (sin lat-2) (* (sin lat-1) (cos d)))
-                            (* (cos lat-1) (sin d))))
-                  (R0 (phase (complex cosR0 sinR0))))
-             (mod (* R0 (/ 180 pi)) 360))))))))
-
-(defun azimuth-loxodrome (coordinates-1 coordinates-2)
-  (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (destructuring-bind (latitude-2 longitude-2) coordinates-2
-      (let ((lat-1 (* latitude-1 pi 1/180))
-            (lon-1 (* longitude-1 pi 1/180))
-            (lat-2 (* latitude-2 pi 1/180))
-            (lon-2 (* longitude-2 pi 1/180)))
-        (if (= lat-1 lat-2)
-            (if (> lon-2 lon-1) 90 270)
-            (mod (* (/ 180 pi)
-                    (+ (atan (/ (wrap-longitude (- lon-2 lon-1))
-                                (- (log (tan (+ (/ lat-2 2) (/ pi 4))))
-                                   (log (tan (+ (/ lat-1 2) (/ pi 4)))))))
-                       (if (< lat-2 lat-1) pi 0)))
-                 360))))))
-
-(defun distance-loxodrome (coordinates-1 coordinates-2 &optional azimuth)
-  (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (destructuring-bind (latitude-2 longitude-2) coordinates-2
-      (let ((lat-1 (* latitude-1 pi 1/180))
-            (lon-1 (* longitude-1 pi 1/180))
-            (lat-2 (* latitude-2 pi 1/180))
-            (lon-2 (* longitude-2 pi 1/180))
-            (azimuth (or azimuth
-                         (azimuth-loxodrome coordinates-1 coordinates-2))))
-        (if (= lat-1 lat-2)
-            (* (abs (- lon-2 lon-1)) (cos lat-1))
-            (/ (- lat-2 lat-1) (cos (* (/ pi 180) azimuth))))))))
-
 (defun rad (x)
   (* x pi 1/180))
 
@@ -252,31 +173,116 @@
     (t
      lon)))
 
-(defun draw-orthodrome (coordinates-1 coordinates-2 map color &optional (steps 1000))
-  (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (do ((step (/ (distance-orthodrome coordinates-1 coordinates-2) steps))
-         (dlat 0 (* step (cos a)))
-         (lat (rad latitude-1) (+ lat dlat))
-         (dlon 0 (* step (/ (sin a) (cos lat))))
-         (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
-         (a (rad (azimuth-orthodrome coordinates-1 coordinates-2))
-            (rad (azimuth-orthodrome (list (deg lat) (deg lon))
-                                     coordinates-2)))
-         (i 0 (1+ i)))
-        ((> i steps))
-      (draw-point (list (deg lat) (deg lon)) map color 2))))
+(defun mercator (lat)
+  (log (tan (+ (/ lat 2) (/ pi 4)))))
 
-(defun draw-loxodrome (coordinates-1 coordinates-2 map color &optional (steps 1000))
+(defun draw-point (coordinates map color thickness)
+  (destructuring-bind (latitude longitude) coordinates
+    (when (< -80 latitude 80)
+      (let* ((lat (rad latitude))
+             (lon (rad longitude))
+             (image (world-map (clim:pane-frame map)))
+             (width (clim:pattern-width image))
+             (height (clim:pattern-height image))
+             (center-x (/ width 2))
+             (center-y (/ height 2))
+             (x (+ center-x (round (* (/ lon 2 pi) width))))
+             (y (- center-y  (round (* (/ (mercator lat)
+                                          (mercator (rad 80)) 2)
+                                       height)))))
+        (clim:draw-point* map x y :ink color :line-thickness thickness)))))
+
+(defun distance-orthodrome (coordinates-1 coordinates-2)
   (destructuring-bind (latitude-1 longitude-1) coordinates-1
-    (do ((step (/ (distance-loxodrome coordinates-1 coordinates-2) steps))
-         (a (rad (azimuth-loxodrome coordinates-1 coordinates-2)))
-         (dlat 0 (* step (cos a)))
-         (lat (rad latitude-1) (+ lat dlat))
-         (dlon 0 (* step (/ (sin a) (cos lat))))
-         (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
-         (i 0 (1+ i)))
-        ((> i steps))
-      (draw-point (list (deg lat) (deg lon)) map color 2))))
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let* ((lat-1 (rad latitude-1))
+             (lon-1 (rad longitude-1))
+             (lat-2 (rad latitude-2))
+             (lon-2 (rad longitude-2))
+             (c (+ (* (cos lat-1) (cos lat-2) (cos (- lon-2 lon-1)))
+                   (* (sin lat-1) (sin lat-2)))))
+        (acos c)))))
+
+(defun azimuth-orthodrome (coordinates-1 coordinates-2 &optional distance)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let ((lat-1 (rad latitude-1))
+            (lon-1 (rad longitude-1))
+            (lat-2 (rad latitude-2))
+            (lon-2 (rad longitude-2))
+            (d (or distance
+                   (distance-orthodrome coordinates-1 coordinates-2))))
+        (cond
+          ((zerop d)
+           0)
+          ((= lon-1 lon-2)
+           (if (> lat-1 lat-2) 180 0))
+          (t
+           (let* ((sinR0 (/ (* (cos lat-2) (sin (- lon-2 lon-1))) (sin d)))
+                  (cosR0 (/ (- (sin lat-2) (* (sin lat-1) (cos d)))
+                            (* (cos lat-1) (sin d))))
+                  (R0 (phase (complex cosR0 sinR0))))
+             (mod (deg R0) 360))))))))
+
+(defun azimuth-loxodrome (coordinates-1 coordinates-2)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let ((lat-1 (rad latitude-1))
+            (lon-1 (rad longitude-1))
+            (lat-2 (rad latitude-2))
+            (lon-2 (rad longitude-2)))
+        (if (= lat-1 lat-2)
+            (if (> lon-2 lon-1) 90 270)
+            (let* ((tanR0 (/ (wrap-longitude (- lon-2 lon-1))
+                             (- (mercator lat-2) (mercator lat-1))))
+                   (R0 (+ (atan tanR0) (if (< lat-2 lat-1) pi 0))))
+              (mod (deg R0) 360)))))))
+
+(defun distance-loxodrome (coordinates-1 coordinates-2 &optional azimuth)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (destructuring-bind (latitude-2 longitude-2) coordinates-2
+      (let ((lat-1 (rad latitude-1))
+            (lon-1 (rad longitude-1))
+            (lat-2 (rad latitude-2))
+            (lon-2 (rad longitude-2))
+            (az (rad (or azimuth
+                         (azimuth-loxodrome coordinates-1 coordinates-2)))))
+        (if (= lat-1 lat-2)
+            (* (abs (- lon-2 lon-1)) (cos lat-1))
+            (/ (- lat-2 lat-1) (cos az)))))))
+
+(defun draw-orthodrome (coordinates-1 coordinates-2 map color)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (let* ((distance (distance-orthodrome coordinates-1 coordinates-2))
+           (step (/ 1000 +earth-radius+))
+           (n (floor distance step)))
+      (do ((lat (rad latitude-1) (+ lat dlat))
+           (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
+           (az (rad (azimuth-orthodrome coordinates-1 coordinates-2 distance))
+               (rad (azimuth-orthodrome (list (deg lat) (deg lon))
+                                        coordinates-2)))
+           (dlat 0 (* step (cos az)))
+           (dlon 0 (* step (/ (sin az) (cos lat))))
+           (i 0 (1+ i)))
+          ((> i n))
+        (when (zerop (mod i 100))
+          (draw-point (list (deg lat) (deg lon)) map color 3))))))
+
+(defun draw-loxodrome (coordinates-1 coordinates-2 map color)
+  (destructuring-bind (latitude-1 longitude-1) coordinates-1
+    (let* ((azimuth (azimuth-loxodrome coordinates-1 coordinates-2))
+           (distance (distance-loxodrome coordinates-1 coordinates-2 azimuth))
+           (step (/ 1000 +earth-radius+))
+           (n (floor distance step))
+           (az (rad azimuth)))
+      (do ((lat (rad latitude-1) (+ lat dlat))
+           (lon (rad longitude-1) (wrap-longitude (+ lon dlon)))
+           (dlat 0 (* step (cos az)))
+           (dlon 0 (* step (/ (sin az) (cos lat))))
+           (i 0 (1+ i)))
+          ((> i n))
+        (when (zerop (mod i 100))
+          (draw-point (list (deg lat) (deg lon)) map color 3))))))
 
 (defun update (source pane)
   (let* ((frame (clim:pane-frame pane))
@@ -306,8 +312,8 @@
          (az-loxo (azimuth-loxodrome coordinates-1 coordinates-2))
          (dist-loxo (distance-loxodrome coordinates-1 coordinates-2)))
     (display-map frame map)
-    (draw-loxodrome coordinates-1 coordinates-2 map clim:+blue+)
-    (draw-orthodrome coordinates-1 coordinates-2 map clim:+green+)
+    (draw-loxodrome coordinates-1 coordinates-2 map clim:+purple+)
+    (draw-orthodrome coordinates-1 coordinates-2 map clim:+orange+)
     (update-coordinates coordinates-1 lat/lon-1 lat/lon-deg-1 utm-1 mgrs-1
                         maidenhead-1 olc-1)
     (draw-point coordinates-1 map clim:+red+ 6)
@@ -315,11 +321,11 @@
                         maidenhead-2 olc-2)
     (draw-point coordinates-2 map clim:+yellow+ 6)
     (setf (clim:gadget-value distance-ortho)
-          (format nil "~d km" (round (* 6378137d0 dist-ortho) 1000)))
+          (format nil "~d km" (round (* +earth-radius+ dist-ortho) 1000)))
     (setf (clim:gadget-value azimuth-ortho)
           (format nil "~d°" (round az-ortho)))
     (setf (clim:gadget-value distance-loxo)
-          (format nil "~d km" (round (* 6378137d0 dist-loxo) 1000)))
+          (format nil "~d km" (round (* +earth-radius+ dist-loxo) 1000)))
     (setf (clim:gadget-value azimuth-loxo)
           (format nil "~d°" (round az-loxo)))
     (clim:redisplay-frame-panes frame)))
