@@ -33,12 +33,16 @@
    (lat/lon-deg-1 :text-field
                   :editable-p nil)
    (utm-1 :text-field
+          :value "31U 0451591 5412103"
           :activate-callback (lambda (pane) (update :utm pane)))
    (mgrs-1 :text-field
+           :value "31UDQ5159012102"
            :activate-callback (lambda (pane) (update :mgrs pane)))
    (maidenhead-1 :text-field
+                 :value "JN18eu06"
                  :activate-callback (lambda (pane) (update :maidenhead pane)))
    (olc-1 :text-field
+          :value "8FW4V86R+22"
           :activate-callback (lambda (pane) (update :olc pane)))
    (lat/lon-2 :text-field
               :value "45°31'12.3\"N 122°40'45.6\"W"
@@ -46,12 +50,16 @@
    (lat/lon-deg-2 :text-field
                   :editable-p nil)
    (utm-2 :text-field
+          :value "10T 0525044 5040778"
           :activate-callback (lambda (pane) (update :utm pane)))
    (mgrs-2 :text-field
+           :value "10TER2504340777"
            :activate-callback (lambda (pane) (update :mgrs pane)))
    (maidenhead-2 :text-field
+                 :value "CN85pm84"
                  :activate-callback (lambda (pane) (update :maidenhead pane)))
    (olc-2 :text-field
+          :value "84QVG8CC+27"
           :activate-callback (lambda (pane) (update :olc pane)))
    (distance-ortho :text-field
                    :editable-p nil)
