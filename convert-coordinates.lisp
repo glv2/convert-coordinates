@@ -1,5 +1,5 @@
 ;;;; This file is part of convert-coordinates
-;;;; Copyright 2021 Guillaume LE VAILLANT
+;;;; Copyright 2021-2022 Guillaume LE VAILLANT
 ;;;; Distributed under the GNU GPL v3 or later.
 ;;;; See the file LICENSE for terms of use and distribution.
 
@@ -141,11 +141,11 @@
              (utm-ups:parse-utm/ups (clim:gadget-value utm))
            (utm-ups:utm/ups->lat/lon zone easting northing)))
         ((:mgrs)
-         (mgrs:mgrs->lat/lon (clim:gadget-value mgrs)))
+         (mgrs:mgrs->lat/lon (clim:gadget-value mgrs) t))
         ((:maidenhead)
-         (maidenhead:maidenhead->lat/lon (clim:gadget-value maidenhead)))
+         (maidenhead:maidenhead->lat/lon (clim:gadget-value maidenhead) t))
         ((:olc)
-         (olc:olc->lat/lon (clim:gadget-value olc))))
+         (olc:olc->lat/lon (clim:gadget-value olc) t)))
     (error () '(0 0))))
 
 (defun update-coordinates (coordinates lat/lon lat/lon-deg utm mgrs maidenhead olc)
@@ -163,7 +163,7 @@
     (setf (clim:gadget-value mgrs) (mgrs:lat/lon->mgrs latitude longitude))
     (setf (clim:gadget-value maidenhead)
           (maidenhead:lat/lon->maidenhead latitude longitude))
-    (setf (clim:gadget-value olc) (olc:lat/lon->olc latitude longitude))))
+    (setf (clim:gadget-value olc) (olc:lat/lon->olc latitude longitude t))))
 
 (defun rad (x)
   "Convert the X angle from degrees to radians."
