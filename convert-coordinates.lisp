@@ -17,16 +17,72 @@
   (asdf:system-relative-pathname "convert-coordinates" "map.png")
   "Mercator projection of the planet for latitudes between -80° and 80°.")
 
+(defun rad (x)
+  "Convert the X angle from degrees to radians."
+  (* x pi 1/180))
+
+(defun deg (x)
+  "Convert the X angle from radians to degrees."
+  (* x (/ 180 pi)))
+
+(defun wrap-longitude (lon)
+  "Wrap the longitude angle so that it stays between -π and π."
+  (cond
+    ((< lon (- pi))
+     (+ lon (* 2 pi)))
+    ((> lon pi)
+     (- lon (* 2 pi)))
+    (t
+     lon)))
+
+(defun mercator (lat)
+  "Compute the Mercator projection y for a latitude."
+  (log (tan (+ (/ lat 2) (/ pi 4)))))
+
+(defun mercator-inverse (y)
+  "Compute the latitude for a Mercator projection y."
+  (* (- (atan (exp y)) (/ pi 4)) 2))
+
+(defun lat/lon->x/y (latitude longitude frame)
+  "Compute the coordinates of pixels on the map for a latitude and
+a longitude."
+  (let* ((lat (rad latitude))
+         (lon (rad longitude))
+         (image (world-map frame))
+         (width (clim:pattern-width image))
+         (height (clim:pattern-height image))
+         (center-x (/ width 2))
+         (center-y (/ height 2))
+         (x (+ center-x (round (* (/ lon 2 pi) width))))
+         (y (- center-y  (round (* (/ (mercator lat)
+                                      (mercator (rad 80)) 2)
+                                   height)))))
+    (list x y)))
+
+(defun x/y->lat/lon (x y frame)
+  "Compute the latitude and longitude for a pixel on the map."
+  (let* ((image (world-map frame))
+         (width (clim:pattern-width image))
+         (height (clim:pattern-height image))
+         (center-x (/ width 2))
+         (center-y (/ height 2))
+         (lat (mercator-inverse (* (/ (- center-y y) height)
+                                   (mercator (rad 80)) 2)))
+         (lon (* (/ (- x center-x) width) 2 pi)))
+    (list (deg lat) (deg lon))))
+
+(defclass map-pane (clim:application-pane) ())
+
 (clim:define-application-frame convert-coordinates ()
   ((world-map :accessor world-map
               :initform (clim:make-pattern-from-bitmap-file *map*)))
   (:menu-bar nil)
   (:panes
-   (map :application-pane
-        :min-width 1200 :max-width 1200
-        :min-height 930 :max-height 930
-        :display-time nil
-        :display-function #'clear-map)
+   (map (clim:make-pane 'map-pane
+                        :min-width 1200 :max-width 1200
+                        :min-height 930 :max-height 930
+                        :display-time nil
+                        :display-function #'clear-map))
    (lat/lon-1 :text-field
               :value "48.86 2.34"
               :activate-callback (lambda (pane) (update :lat/lon pane)))
@@ -121,7 +177,7 @@
                    distance-loxo)
                  (clim:labelling (:label "Azimuth" :label-alignment :top)
                    azimuth-loxo)))))
-      (3/4 (clim:labelling (:label "World map (Mercator projection)"
+      (3/4 (clim:labelling (:label "World map (Mercator projection, left click to set point 1, right click to set point 2)"
                             :label-alignment :top)
              map))))))
 
@@ -165,44 +221,13 @@
           (maidenhead:lat/lon->maidenhead latitude longitude))
     (setf (clim:gadget-value olc) (olc:lat/lon->olc latitude longitude t))))
 
-(defun rad (x)
-  "Convert the X angle from degrees to radians."
-  (* x pi 1/180))
-
-(defun deg (x)
-  "Convert the X angle from radians to degrees."
-  (* x (/ 180 pi)))
-
-(defun wrap-longitude (lon)
-  "Wrap the longitude angle so that it stays between -π and π."
-  (cond
-    ((< lon (- pi))
-     (+ lon (* 2 pi)))
-    ((> lon pi)
-     (- lon (* 2 pi)))
-    (t
-     lon)))
-
-(defun mercator (lat)
-  "Compute the Mercator projection for a latitude."
-  (log (tan (+ (/ lat 2) (/ pi 4)))))
-
 (defun draw-point (coordinates map color thickness)
   "Draw a point at some COORDINATES on the MAP, using the given COLOR and
 THICKNESS."
   (destructuring-bind (latitude longitude) coordinates
     (when (< -80 latitude 80)
-      (let* ((lat (rad latitude))
-             (lon (rad longitude))
-             (image (world-map (clim:pane-frame map)))
-             (width (clim:pattern-width image))
-             (height (clim:pattern-height image))
-             (center-x (/ width 2))
-             (center-y (/ height 2))
-             (x (+ center-x (round (* (/ lon 2 pi) width))))
-             (y (- center-y  (round (* (/ (mercator lat)
-                                          (mercator (rad 80)) 2)
-                                       height)))))
+      (destructuring-bind (x y)
+          (lat/lon->x/y latitude longitude (clim:pane-frame map))
         (clim:draw-point* map x y :ink color :line-thickness thickness)))))
 
 (defun distance-orthodrome (coordinates-1 coordinates-2)
@@ -355,6 +380,29 @@ the MAP, using some COLOR."
     (setf (clim:gadget-value azimuth-loxo)
           (format nil "~d°" (round az-loxo)))
     (clim:redisplay-frame-panes frame)))
+
+(clim:define-gesture-name :set-point-1 :pointer-button-press (:left))
+(clim:define-gesture-name :set-point-2 :pointer-button-press (:right))
+
+(defmethod clim:handle-event ((pane map-pane) (event clim:pointer-event))
+  (let ((frame (clim:pane-frame pane))
+        (x (clim:pointer-event-x event))
+        (y (clim:pointer-event-y event)))
+    (cond
+      ((clim:event-matches-gesture-name-p event :set-point-1)
+       (destructuring-bind (latitude longitude) (x/y->lat/lon x y frame)
+         (let ((lat/lon-1 (clim:find-pane-named frame 'lat/lon-1)))
+           (setf (clim:gadget-value lat/lon-1)
+                 (utm-ups:format-lat/lon latitude longitude t))
+           (update :lat/lon lat/lon-1))))
+      ((clim:event-matches-gesture-name-p event :set-point-2)
+       (destructuring-bind (latitude longitude) (x/y->lat/lon x y frame)
+         (let ((lat/lon-2 (clim:find-pane-named frame 'lat/lon-2)))
+           (setf (clim:gadget-value lat/lon-2)
+                 (utm-ups:format-lat/lon latitude longitude t))
+           (update :lat/lon lat/lon-2))))
+      (t
+       (call-next-method)))))
 
 (defun gui ()
   "Show the graphical interface."
