@@ -11,6 +11,8 @@ between the following systems:
 It also shows the locations as well as the orthodrome and loxodrome between
 these locations on a world map.
 
+[[./screenshot.png]]
+
 * License
 This program is released under the GPL-3 license. See the [[file:LICENSE][LICENSE]] file for
 details.
