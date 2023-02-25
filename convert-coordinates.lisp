@@ -13,9 +13,11 @@
 
 (defconstant +earth-radius+ 6378137d0
   "Radius of the planet")
-(defparameter *map*
-  (asdf:system-relative-pathname "convert-coordinates" "map.png")
-  "Mercator projection of the planet for latitudes between -80° and 80°.")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *map*
+    (clim:make-pattern-from-bitmap-file
+     (asdf:system-relative-pathname "convert-coordinates" "map.png"))
+    "Mercator projection of the planet for latitudes between -80° and 80°."))
 
 (defun rad (x)
   "Convert the X angle from degrees to radians."
@@ -75,7 +77,7 @@ a longitude."
 
 (clim:define-application-frame convert-coordinates ()
   ((world-map :accessor world-map
-              :initform (clim:make-pattern-from-bitmap-file *map*)))
+              :initform *map*))
   (:menu-bar nil)
   (:panes
    (map (clim:make-pane 'map-pane
