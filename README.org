@@ -13,6 +13,8 @@ these locations on a world map.
 
 [[./screenshot.png]]
 
+There is also a command line version of the program, which doesn't have a map.
+
 * License
 This program is released under the GPL-3 license. See the [[file:LICENSE][LICENSE]] file for
 details.
@@ -36,11 +38,19 @@ you can run it with:
 (convert-coordinates:gui)
 #+END_SRC
 
+You can run the command line version with:
+
+#+BEGIN_SRC lisp
+(asdf:load-system "convert-coordinates-cli")
+(convert-coordinates-cli:cli)
+#+END_SRC
+
 * Building a standalone executable
-A Makefile is available to build a standalone executable for the program using
+A Makefile is available to build standalone executables for the programs using
 [[http://www.sbcl.org/][SBCL]].
 
 #+BEGIN_SRC shell
 make
 ./convert-coordinates
+./convert-coordinates-cli
 #+END_SRC
