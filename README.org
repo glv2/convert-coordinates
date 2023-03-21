@@ -1,5 +1,7 @@
 #+TITLE: convert-coordinates
 
+The active repository is at https://codeberg.org/glv/convert-coordinates
+
 This is a Common Lisp program that can convert the coordinates of two locations
 between the following systems:
  - Latitude/Longitude
@@ -24,11 +26,11 @@ The world map is in the public domain. It comes from NASA's Earth Observatory
 
 * Running the program
 The program requires the following dependencies:
- - [[https://github.com/glv2/maidenhead][maidenhead]]
- - [[https://github.com/McCLIM/McCLIM][mcclim]]
- - [[https://github.com/glv2/mgrs][mgrs]]
- - [[https://github.com/glv2/olc][olc]]
- - [[https://github.com/glv2/utm-ups][utm-ups]]
+ - [[https://codeberg.org/glv/maidenhead][maidenhead]]
+ - [[https://codeberg.org/McCLIM/McCLIM][mcclim]]
+ - [[https://codeberg.org/glv/mgrs][mgrs]]
+ - [[https://codeberg.org/glv/olc][olc]]
+ - [[https://codeberg.org/glv/utm-ups][utm-ups]]
 
 Once the program and its dependencies are in paths where ASDF can see them,
 you can run it with:
